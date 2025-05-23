@@ -1,9 +1,9 @@
 <template>
   <div class="attendance-container wide-layout">
-    <h1>学生考勤打卡</h1>
+    <!-- <h1>学生考勤打卡</h1> -->
     <div class="detection-options">
       <h2>活体检测方案</h2>
-      <div class="option-buttons">
+      <div class="option-buttons" style="align-items: center;">
         <button 
           class="option-btn" 
           :class="{ active: currentMethod === 'api' }" 
@@ -18,7 +18,7 @@
           @click="currentMethod = 'model'"
         >
           <span class="option-icon">🧠</span>
-          <span>交互式活体检测</span>
+          <span>基于InsightFace的方案</span>
         </button>
         <button 
           class="option-btn" 
@@ -26,7 +26,7 @@
           @click="currentMethod = 'custom'"
         >
           <span class="option-icon">⚙️</span>
-          <span>自定义方案</span>
+          <span>Silent-Face-Anti-Spoofing</span>
         </button>
       </div>
       <p class="method-description">{{ methodDescriptions[currentMethod] }}</p>
@@ -115,6 +115,14 @@
         </div>
         <div v-if="livenessError" class="liveness-error-tip">❌ {{ livenessError }}</div>
       </div>
+
+      <!-- 自定义方案 -->
+      <div class="liveness-steps-panel" v-if="currentMethod === 'custom'">
+        <h3 class="liveness-title">静默活体检测</h3>
+        <span>无需任何操作</span>
+        <span>点击打卡即可执行</span>
+        
+      </div>
       <!-- 摄像头区 -->
       <div class="camera-section">
         <div class="camera-container">
@@ -166,8 +174,8 @@ import { ref, reactive, onMounted, onUnmounted, nextTick, watch } from 'vue';
 const currentMethod = ref('api');
 const methodDescriptions = {
   api: '通过调用人脸识别API实现活体检测，高精度识别真假人脸，可抵御照片和视频攻击。',
-  model: '交互式活体检测（眨眼、张嘴、点头、摇头），全部通过后自动打卡。',
-  custom: '结合眨眼、张嘴、摇头等动作实现自定义活体检测方案，有效防止欺骗。'
+  model: '基于dlib的交互式活体检测（眨眼、张嘴、点头、摇头），全部通过后自动打卡。',
+  custom: 'Silent-Face-Anti-Spoofing，实现活体识别，特征抽取，特征对比，有效防止欺骗。'
 };
 
 // 摄像头相关
@@ -316,7 +324,7 @@ const takeAttendance = async () => {
     if (attendanceResult.value) {
       setTimeout(() => {
         attendanceResult.value = null;
-      }, 5000);
+      }, 5000000000);
     }
   } catch (error) {
     console.error('考勤打卡失败:', error);
@@ -555,6 +563,8 @@ onUnmounted(() => {
   max-width: 1400px;
 }
 .main-flex-row {
+  margin-top: 2%;
+  height: 90%;
   display: flex;
   flex-direction: row;
   gap: 2.5rem;
@@ -660,10 +670,11 @@ onUnmounted(() => {
   padding: 0.5rem 1rem;
 }
 .detection-options {
+  align-items: center;
   background-color: white;
   border-radius: 1rem;
   padding: 1.5rem;
-  margin-bottom: 2rem;
+  margin-bottom: 0rem;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
@@ -673,19 +684,22 @@ h2 {
 }
 
 .option-buttons {
+  
+  align-items: center;
   display: flex;
-  gap: 1rem;
+  gap: 6rem;
   margin-bottom: 1rem;
 }
 
 .option-btn {
+  align-items: center;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 1rem;
   background-color: #f5f5f7;
   border: 2px solid transparent;
   border-radius: 0.5rem;
-  padding: 0.75rem 1.25rem;
+  padding: 0.75rem 3rem;
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
@@ -711,10 +725,13 @@ h2 {
 }
 
 .camera-section {
-  margin-bottom: 2rem;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 0rem;
 }
 
 .camera-container {
+  align-items: center;
   position: relative;
   width: 100%;
   height: 480px;
@@ -728,9 +745,11 @@ h2 {
 }
 
 .camera-feed {
+  align-items: center;
+  justify-content: center;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  /* object-fit: cover; */
 }
 
 .face-canvas {

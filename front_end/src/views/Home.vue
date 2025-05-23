@@ -10,7 +10,7 @@
         </div> -->
       </div>
       <div class="hero-image">
-        <img src="../assets/face-recognition.svg" alt="人脸识别" />
+        <img src="../assets/2.png" alt="人脸识别" />
       </div>
     </section>
 
@@ -26,7 +26,7 @@
         <div class="feature-card">
           <div class="feature-icon">⚡</div>
           <h3>高效便捷</h3>
-          <p>快速准确的人脸识别技术，1秒完成签到打卡</p>
+          <p>快速准确的人脸识别技术，5秒完成签到打卡</p>
         </div>
 
         <div class="feature-card">
@@ -38,7 +38,7 @@
         <div class="feature-card">
           <div class="feature-icon">🔄</div>
           <h3>实时同步</h3>
-          <p>考勤记录即时上传云端，管理人员可随时查看</p>
+          <p>考勤记录即时上传，管理人员可随时查看</p>
         </div>
       </div>
     </section>
@@ -46,13 +46,13 @@
     <section class="stats-section">
       <h2>系统数据</h2>
       <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-number">99.9%</div>
+        <!-- <div class="stat-card">
+          <div class="stat-number">93.2%</div>
           <div class="stat-label">识别准确率</div>
-        </div>
+        </div> -->
 
         <div class="stat-card">
-          <div class="stat-number">0.5秒</div>
+          <div class="stat-number">5秒</div>
           <div class="stat-label">平均识别时间</div>
         </div>
 
@@ -62,7 +62,7 @@
         </div>
 
         <div class="stat-card">
-          <div class="stat-number">10000+</div>
+          <div class="stat-number">1000+</div>
           <div class="stat-label">日处理考勤量</div>
         </div>
       </div>
@@ -87,6 +87,7 @@
   align-items: center;
   justify-content: space-between;
   margin-bottom: 4rem;
+  margin-top: 4%;
   gap: 2rem;
 }
 
@@ -97,6 +98,8 @@
 }
 
 .hero-image {
+  border-radius: 2%;
+  
   flex: 1;
   display: flex;
   justify-content: center;
@@ -104,14 +107,17 @@
 }
 
 .hero-image img {
-  max-width: 100%;
+  border-radius: 2%;
+  border-color: aquamarine;
+  border-width: 200px;
+  max-width: 65%;
   height: auto;
 }
 
 h1 {
-  font-size: 3rem;
+  font-size: 4rem;
   margin-bottom: 1rem;
-  background: linear-gradient(135deg, var(--primary-color) 0%, #3a3af1 100%);
+  background: linear-gradient(135deg, var(--primary-color) 0%, #3aa5f1 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }

@@ -365,6 +365,8 @@ const formatTime = (dateTimeStr) => {
 // 获取状态对应的CSS类名
 const getStatusClass = (status) => {
   switch (status) {
+    case 'early':
+      return 'status-present';
     case 'present':
       return 'status-present';
     case 'late':
@@ -379,6 +381,8 @@ const getStatusClass = (status) => {
 // 翻译状态为中文
 const translateStatus = (status) => {
   switch (status) {
+    case 'early':
+      return '未到打卡时间';
     case 'present':
       return '正常出勤';
     case 'late':

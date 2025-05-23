@@ -34,7 +34,7 @@
         <div class="col-teacher">{{ classItem.teacher_name || '未分配' }}</div>
         <div class="col-date">{{ formatDate(classItem.create_time) }}</div>
         <div class="col-actions">
-          <button class="edit-btn" @click="editClass(classItem)">编辑</button>
+          <!-- <button class="edit-btn" @click="editClass(classItem)">编辑</button> -->
           <button class="view-btn" @click="viewClassDetails(classItem)">查看学生</button>
           <button class="rule-btn" @click="manageRules(classItem)">考勤规则</button>
         </div>
@@ -262,7 +262,7 @@ export default {
           return
         }
         
-        const response = await fetch(`http://localhost:8000/api/admin/students?class_name=${encodeURIComponent(classItem.class_name)}`, {
+        const response = await fetch(`/api/admin/students?class_name=${encodeURIComponent(classItem.class_name)}`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }

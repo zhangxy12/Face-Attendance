@@ -196,7 +196,10 @@ html, body {
 }
 
 body {
-  background-color: var(--background-light);
+   background: 
+    linear-gradient(135deg, #9cb2d6 0%, transparent 20%),
+    linear-gradient(315deg, #a2bae1 0%, transparent 20%),
+    var(--background-light);
 }
 
 #app {

@@ -599,7 +599,7 @@ class AttendanceDB:
             
             start_hour, start_minute = map(int, rule['start_time'].split(':'))
             end_hour, end_minute = map(int, rule['end_time'].split(':'))
-            
+         
             # 转换为分钟计算
             check_minutes = check_hour * 60 + check_minute
             start_minutes = start_hour * 60 + start_minute
@@ -609,10 +609,14 @@ class AttendanceDB:
             late_threshold = rule['late_threshold']
             
             if check_minutes <= start_minutes:
-                status = "present"  # 正常
-                message = "正常签到"
+                status = "early"  # 正常
+                message = "未到打卡时间"
+            
             elif check_minutes <= start_minutes + late_threshold:
-                status = "late"  # 迟到
+                status = "present"  # 正常
+                message = "正常出勤"
+            elif check_minutes > start_minutes + late_threshold and check_minutes <= end_minutes:
+                status = "late"
                 late_minutes = check_minutes - start_minutes
                 message = f"迟到 {late_minutes} 分钟"
             else:
@@ -808,7 +812,7 @@ class AttendanceDB:
             cursor = conn.cursor()
             
             # 修改查询：使用CASE判断face_feature是否为空，并返回状态
-            #TODO 这里应加上考虑使用方案2和方案3的特征数据
+            # 考虑使用方案2和方案3的特征数据
             query = """
                 SELECT 
                     id, 
@@ -817,7 +821,10 @@ class AttendanceDB:
                     class_name,
                     register_time,
                     CASE 
-                        WHEN face_feature IS NOT NULL AND LENGTH(face_feature) > 0 THEN 'status-yes'
+                        WHEN (face_feature IS NOT NULL AND LENGTH(face_feature) > 0)
+                            OR (face_feature_2 IS NOT NULL AND LENGTH(face_feature_2) > 0)
+                            OR (face_feature_3 IS NOT NULL AND LENGTH(face_feature_3) > 0)
+                        THEN 'status-yes'
                         ELSE 'status-no'
                     END AS has_face_feature
                 FROM students

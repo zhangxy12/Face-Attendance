@@ -182,7 +182,7 @@ def MiniFASNetV2(embedding_size=128, conv6_kernel=(5, 5),
 
 class SilentFaceRecognitionModel:
     def __init__(self, 
-                 liveness_model_path="", 
+                 liveness_model_path="D:\\dasanxia\\content_s\\lab6\\back_end\\face_model2\\anti_spoof_models\\2.7_80x80_MiniFASNetV2.pth", 
                  device='cpu'):
         self.device = torch.device(device)
         self.mtcnn = MTCNN(keep_all=True, device=self.device)
@@ -300,12 +300,14 @@ if __name__ == "__main__":
     )
 
     # 测试图片路径
-    image_path_1 = "F:\\qq\\qqfile\\2.jpg"
+    image_path_1 = "D:\\dasanxia\\content_s\\lab6\\back_end\\uploads\\1.jpg"
     image_path_2 = "F:\\qq\\qqfile\\2.jpg"
 
     # 活体检测
     live_result = model.detect_liveness(image_path_1)
-    print(f"是否为真人：{live_result['is_live']} (得分: {live_result.get('liveness_score', 0):.2f})")
+    print(f"1是否为真人：{live_result['is_live']} (得分: {live_result.get('liveness_score', 0):.2f})")
+    # live_result1 = model.detect_liveness(image_path_2)
+    # print(f"2是否为真人：{live_result1['is_live']} (得分: {live_result1.get('liveness_score', 0):.2f})")
 
     # 特征提取与比对
     feature1 = model.extract_feature(image_path_1)

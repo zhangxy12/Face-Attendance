@@ -4,8 +4,9 @@ import numpy as np
 import cv2
 from deepface import DeepFace
 from skimage.metrics import structural_similarity as ssim
+from scipy.spatial.distance import cosine
 import os
-print("模型权重存在吗？", os.path.exists(r"D:\\dasanxia\\content_s\\lab6\\back_end\\face_model2\\anti_spoof_models\\2.7_80x80_MiniFASNetV2.pth"))
+# print("模型权重存在吗？", os.path.exists(r"D:\\dasanxia\\content_s\\lab6\\back_end\\face_model2\\anti_spoof_models\\2.7_80x80_MiniFASNetV2.pth"))
 class DeepFaceAttendanceModel:
     def __init__(self, detector_backend='mtcnn', model_name='ArcFace'):
         self.detector_backend = detector_backend
@@ -43,8 +44,8 @@ class DeepFaceAttendanceModel:
             flipped = cv2.flip(face_gray, 1)
             ssim_score = ssim(face_gray, flipped)
             
-            is_live = (blur_score > 50 and contrast_score > 10 and ssim_score < 0.99)
-            
+            is_live = (blur_score > 30 and contrast_score > 10 and ssim_score < 0.99)
+            print(f"模糊度: {blur_score}, 对比度: {contrast_score}, SSIM: {ssim_score}")
             return {
                 'success': True,
                 'is_live': is_live,
@@ -74,14 +75,14 @@ class DeepFaceAttendanceModel:
         except Exception as e:
             return {'success': False, 'message': f'特征提取失败: {str(e)}'}
 
-    def compare_features(self, feature1, feature2, threshold=0.6):
+    def compare_features(self, feature1, feature2, threshold=0.5):
         """
         比较两个人脸特征向量的相似度
         
         Args:
             feature1: 第一个人脸特征向量
             feature2: 第二个人脸特征向量
-            threshold: 相似度阈值，默认为0.8
+            threshold: 相似度阈值
             
         Returns:
             dict: 包含比对结果的字典
@@ -119,7 +120,7 @@ class DeepFaceAttendanceModel:
             f2_normalized = f2 / (np.linalg.norm(f2) + 1e-8)
             
             # 计算余弦相似度
-            similarity = np.dot(f1_normalized, f2_normalized)
+            similarity = 1 - cosine(f1, f2)
             
             return {
                 "success": True,
@@ -138,16 +139,16 @@ class DeepFaceAttendanceModel:
 arc_face = DeepFaceAttendanceModel(detector_backend='mtcnn', model_name='ArcFace')
 
 if __name__ == "__main__":
-    image_path = "F:\\qq\\qqfile\\1.jpg"
+    image_path = "D:\\dasanxia\\content_s\\lab6\\back_end\\uploads\\1.jpg"
     liveness_result = arc_face.detect_liveness(image_path)
     print("活体检测结果:", liveness_result)
     
-    if liveness_result['success'] and liveness_result['is_live']:
-        feature_result = arc_face.extract_feature(image_path)
-        print("特征提取结果:", feature_result)
-    cmp_result = arc_face.compare_features(
-        feature1=feature_result['feature_data'],
-        feature2=feature_result['feature_data'],  # 这里可以替换为其他特征进行比较
-        threshold=0.8
-    )
-    print("特征比较结果:", cmp_result)
+    # if liveness_result['success'] and liveness_result['is_live']:
+    #     feature_result = arc_face.extract_feature(image_path)
+    #     print("特征提取结果:", feature_result)
+    # cmp_result = arc_face.compare_features(
+    #     feature1=feature_result['feature_data'],
+    #     feature2=feature_result['feature_data'],  
+    #     threshold=0.8
+    # )
+    # print("特征比较结果:", cmp_result)

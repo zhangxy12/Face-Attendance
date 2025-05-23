@@ -22,20 +22,42 @@ import dlib
 from scipy.spatial import distance as dist
 import math
 import time
+import sys
+# 获取当前脚本的绝对路径
+current_file = os.path.abspath(__file__)
+# 获取项目根目录（back_end目录）
+project_root = os.path.dirname(current_file)
+# 将项目根目录添加到Python路径
+sys.path.insert(0, project_root)  # 使用insert确保优先级最高
 
+
+# 导入模型
+try:
+    from SlientFaceAntiSpoofing.detect import SilentFaceModel
+    print("成功导入SilentFaceModel")
+except ImportError as e:
+    print(f"导入SilentFaceModel失败: {e}")
+    # 检查模块搜索路径
+    import importlib.util
+    spec = importlib.util.find_spec('SlientFaceAntiSpoofing.detect')
+    # print(f"SlientFaceAntiSpoofing.detect模块规范: {spec}")
+    sys.exit(1)
 # 导入自定义模块
 from database import AttendanceDB
 from face_sdk.arc_face_sdk import ArcFaceSDK
 from face_model1.deepface_model import DeepFaceAttendanceModel
 from face_model2.silence import SilentFaceRecognitionModel
+from face_model3.face_utils import FaceProcessor
+# from SlientFaceAntiSpoofing.detect import SilentFaceModel
 from anti.four_anti import detect_blink, detect_mouth, detect_nod, detect_shake, LivenessSession, check_reflection
 import torch
+
 
 # Redis配置
 redis_client = redis.Redis(host='localhost', port=6379, db=0, decode_responses=False)
 
 # dlib模型加载
-predictor_path = ''
+predictor_path = 'D:/dasanxia/content_s/lab5/face/face/shape_predictor_68_face_landmarks.dat'
 detector = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor(predictor_path)
 
@@ -187,6 +209,9 @@ try:
 except Exception as e:
     print(f"静默活体检测模型初始化失败: {str(e)}")
     silence_model = None
+
+# 初始化4：
+face_processor = FaceProcessor()
 
 # 保存上传的图片
 def save_upload_file(upload_file: UploadFile, directory: Path = UPLOAD_DIR) -> str:
@@ -627,15 +652,27 @@ async def register_student_face(
         arcsoft_result = arc_face.extract_feature(image_path)
         if arcsoft_result['success']:
             arcsoft_feature = arcsoft_result['feature_data'] if isinstance(arcsoft_result['feature_data'], bytes) else arcsoft_result['feature_data'].tobytes()
+    print(f"ArcSoft特征: {arcsoft_result['success'], arcsoft_result['message']}")
     # 2. DeepFace特征
-    deepface_feature = None
-    deepface_result = deepface_model.extract_feature(image_path)
-    if deepface_result['success']:
-        feature = np.asarray(deepface_result['feature_data'], dtype=np.float32).reshape(-1)
-        if feature.shape[0] != 512:
-            os.remove(image_path)
-            return {"success": False, "message": f"DeepFace特征维度错误，实际为{feature.shape[0]}，应为512"}
-        deepface_feature = feature.tobytes()
+    # deepface_feature = None
+    # deepface_result = deepface_model.extract_feature(image_path)
+    # if deepface_result['success']:
+    #     feature = np.asarray(deepface_result['feature_data'], dtype=np.float32).reshape(-1)
+    #     if feature.shape[0] != 512:
+    #         os.remove(image_path)
+    #         return {"success": False, "message": f"DeepFace特征维度错误，实际为{feature.shape[0]}，应为512"}
+    #     deepface_feature = feature.tobytes()
+    detect_result = face_processor.detect_faces(image_path)
+    
+    if not detect_result["success"]:
+        return {"success": False, "message": detect_result["message"]}
+
+    # 3. 解析特征向量并验证维度
+    live_feature = np.array(detect_result["feature"], dtype=np.float32)
+    
+    # 4. 转换为二进制数据以便存储
+    feature_bytes = live_feature.tobytes()
+
     # 3. 静默活体特征
     silence_feature = None
     if silence_model is not None:
@@ -649,7 +686,7 @@ async def register_student_face(
         name=name,
         face_feature=arcsoft_feature,
         class_name=class_name,
-        face_feature_2=deepface_feature,
+        face_feature_2=feature_bytes,
         face_feature_3=silence_feature
     )
     return result
@@ -679,7 +716,7 @@ async def record_attendance(
                 score = item["is_live"]
                 
     if not liveness_result["success"] or not liveness_result.get("is_live", False):
-        
+        os.remove(image_path)
         return JSONResponse(
             status_code=400,
             content={
@@ -702,7 +739,7 @@ async def record_attendance(
     os.remove(image_path)
     current_feature = feature_result["feature_data"]
     similarity_threshold = 0.8
-    # 新增：如果传入 student_id，只比对该学生
+
     if student_id:
         feature_result = db.get_student_face_feature(student_id,"arcsoft")
         if not feature_result["success"]:
@@ -742,67 +779,6 @@ async def record_attendance(
         return attendance_result
 
 
-@app.post("/api/attendance/deepface", tags=["考勤管理"])
-async def record_attendance_deepface(
-    image: UploadFile = File(...),
-    student_id: str = Form(...)
-):
-    """基于DeepFace方案的考勤打卡"""
-    image_path = save_upload_file(image)
-    # 1. 活体检测
-    liveness_result = deepface_model.detect_liveness(image_path)
-    if not liveness_result['success'] or not liveness_result['is_live']:
-        return {"success": False, "message": liveness_result.get('message', '活体检测未通过')}
-    
-    # 2. 提取特征
-    feature_result = deepface_model.extract_feature(image_path)
-    os.remove(image_path)  # 删除临时文件
-    if not feature_result['success']:
-        return {"success": False, "message": feature_result.get('message', '特征提取失败')}
-    print(f"实时特征类型: {type(feature_result['feature_data'])}")
-    # 3. 获取学生特征
-    student = db.get_student(student_id)
-    if not student['success'] or not student['data'].get('face_feature_2'):
-        return {"success": False, "message": '未注册人脸特征'}
-    
-    #  = np.frombuffer(student['data']['face_feature_2'], dtype=np.float32)
-    feature_response = db.get_student_face_feature(student_id,"deepface")
-    if not feature_response['success']:
-        return {"success": False, "message": f"获取特征失败: {feature_response['message']}"}
-
-    # 从响应中提取实际的特征数据
-    db_feature_bytes = feature_response['feature']
-    print(f"数据库特征changdu: {len(db_feature_bytes)}")
-    try:
-        db_feature = np.frombuffer(db_feature_bytes, dtype=np.float32)
-    except Exception as e:
-        return {"success": False, "message": f"特征转换失败: {str(e)}"}
-
-    # 验证维度（必须为512）
-    if db_feature.shape[0] != 512:
-        return {"success": False, "message": f"数据库特征维度错误，实际为{db_feature.shape[0]}，应为512"}
-
-    # 4. 比对
-    compare_result = deepface_model.compare_features(
-        feature_result['feature_data'], 
-        db_feature  # 传递正确的特征向量
-    )
-    print(f"比对结果: {compare_result}")
-    # print(compare_result)
-    if not compare_result['success'] or not compare_result['is_match']:
-        return {"success": False, "message": '人脸比对失败或不匹配'}
-    # 5. 记录考勤
-    db.record_attendance(
-        student_id=student_id,
-        liveness_score=liveness_result.get('liveness_list', [{}])[0].get('score', 0),
-        detection_method='deepface',
-        similarity=compare_result.get('similarity', 0),
-        status=None,
-        
-    )
-    
-    return {"success": True, "message": "打卡成功", "student": {"student_id": student_id, "name": student['data']['name']}}
-
 @app.post("/api/attendance/silence", tags=["考勤管理"])
 async def record_attendance_silence(
     image: UploadFile = File(...),
@@ -813,12 +789,14 @@ async def record_attendance_silence(
         return {"success": False, "message": "静默活体检测模型未正确初始化"}
     image_path = save_upload_file(image)
     # 1. 活体检测
-    liveness_result = silence_model.detect_liveness(image_path)
+    # liveness_result = silence_model.detect_liveness(image_path)
+    # print(f"活体检测结果: {liveness_result}")
+
+    model = SilentFaceModel(model_dir="D:\\dasanxia\\content_s\\lab6\\back_end\\SlientFaceAntiSpoofing\\resources\\anti_spoof_models", device_id=0)
+    liveness_result = model.detect_liveness(image_path)
     print(f"活体检测结果: {liveness_result}")
-    
     if not liveness_result['success'] or not liveness_result['is_live']:
         os.remove(image_path)
-        
         return {"success": False, "message": '活体检测未通过'}
     # 2. 特征提取
     feature_result = silence_model.extract_feature(image_path)
@@ -851,12 +829,114 @@ async def record_attendance_silence(
     )
     return {"success": True, "message": "打卡成功", "student": {"student_id": student_id, "name": student['data']['name']}}
 
+
+@app.post("/api/attendance/deepface", tags=["考勤管理"])
+async def record_attendance_deepface(
+    image: UploadFile = File(...),
+    student_id: str = Form(...)
+):
+    """基于InsightFace的考勤打卡（含活体检测、特征提取、比对）"""
+    try:
+        # 保存上传的图片到临时路径
+        image_path = save_upload_file(image)  
+        
+        # ====================== 1. 活体检测 ======================
+        liveness_result = arc_face.detect_liveness(image_path)
+        print(f"活体检测结果: {liveness_result}")
+        if "liveness_list" in liveness_result and liveness_result["liveness_list"]:
+            for item in liveness_result["liveness_list"]:
+                if "is_live" in item:
+                    print(f"活体检测: {item['is_live']}")
+                    score = item["is_live"]
+                    
+        if not liveness_result["success"] or not liveness_result.get("is_live", False):
+            os.remove(image_path)
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "success": False,
+                    "message": "活体检测失败，无法进行考勤",
+                    
+                }
+            )
+  
+        
+        # ====================== 2. 人脸检测与特征提取 ======================
+        detect_result = face_processor.detect_faces(image_path)
+        os.remove(image_path)  # 及时删除临时文件
+        if not detect_result["success"]:
+            return {"success": False, "message": detect_result["message"]}
+        
+        # 提取特征向量
+        live_feature = np.array(detect_result["feature"], dtype=np.float32)
+        
+        # ====================== 3. 从数据库获取学生注册特征 ======================
+        student = db.get_student(student_id)
+        if not student["success"]:
+            return {"success": False, "message": "学生信息查询失败"}
+        if not student["data"].get("face_feature_2"):  
+            return {"success": False, "message": "未注册人脸特征"}
+        
+        # 解析数据库中的特征字节流
+        db_feature_bytes = student["data"]["face_feature_2"]
+        try:
+            db_feature = np.frombuffer(db_feature_bytes, dtype=np.float32)
+        except Exception as e:
+            return {"success": False, "message": f"特征解析失败: {str(e)}"}
+        
+        # 验证特征维度
+        if db_feature.shape[0] != 512 or live_feature.shape[0] != 512:
+            return {"success": False, "message": "特征维度错误，必须为512维"}
+        
+        # ====================== 4. 人脸特征比对 ======================
+        compare_result = FaceProcessor.compare_features(live_feature, db_feature)
+        print(f"insightface比对结果: {compare_result}")
+        if not compare_result["success"]:
+            return {"success": False, "message": "特征比对失败"}
+        
+        # 检查相似度是否超过阈值
+        if compare_result["similarity"] < 0.5:
+            return {"success": False, "message": "人脸比对不匹配"}
+        
+        # ====================== 5. 记录考勤结果 ======================
+        liveness_score = None
+        if liveness_result.get("liveness_list") and len(liveness_result["liveness_list"]) > 0:
+            score = liveness_result["liveness_list"][0].get("is_live")
+            if isinstance(score, float) and not np.isnan(score) and not np.isinf(score):
+                liveness_score = score
+
+        attendance_record = db.record_attendance(
+            student_id=student_id,
+            liveness_score=liveness_score,
+            similarity=compare_result["similarity"],
+            detection_method="insightface"
+        )
+        
+        if not attendance_record["success"]:
+            return {"success": False, "message": "考勤记录失败"}
+        
+        
+
+        return {
+            "success": True,
+            "message": "打卡成功",
+            "student": {"student_id": student_id, "name": student['data']['name']}
+        }
+    
+    except Exception as e:
+        # 清理可能存在的临时文件
+        if "image_path" in locals() and os.path.exists(image_path):
+            os.remove(image_path)
+        raise HTTPException(status_code=500, detail=f"服务器内部错误: {str(e)}")
+    
+
+
 # 获取考勤记录
 @app.get("/api/attendance", tags=["考勤管理"])
 async def get_attendance(
     student_id: Optional[str] = None,
-    start_date: Optional[str] = None,  # 新增：开始日期
-    end_date: Optional[str] = None,    # 新增：结束日期
+    start_date: Optional[str] = None,  
+    end_date: Optional[str] = None,    
     method: Optional[str] = None,
     class_name: Optional[str] = None
 ):
@@ -1006,23 +1086,18 @@ async def interactive_liveness(
             "start_time": time.time(),
             "reflection_detected": False
         }
-    
-    # img = read_imagefile(img_bytes)
-    # liveness_result = arc_face.detect_liveness_from_numpy(img)
-    # liveness_score = liveness_result.get("is_live")
-    # if not liveness_result["success"] or not liveness_result.get("is_live", False):
-    #     return JSONResponse(status_code=400, content={"success": False, "message": "活体检测不通过，检测到视频攻击，请使用真实人脸"})
+
     # 超时检测
     if "start_time" in session and (time.time() - session["start_time"] > 20):
         set_session(session_id, session)
         return JSONResponse(status_code=400, content={"success": False, "message": "操作超时，请重新开始"})
 
     # 反射检测
-    if not session.get("reflection_detected", False):
-        if check_reflection(frame):
-            session["reflection_detected"] = True
-            set_session(session_id, session)
-            return JSONResponse(status_code=400, content={"success": False, "message": "检测到屏幕反射/视频攻击，请使用真实人脸"})
+    # if not session.get("reflection_detected", False):
+    #     if check_reflection(frame):
+    #         session["reflection_detected"] = True
+    #         set_session(session_id, session)
+    #         return JSONResponse(status_code=400, content={"success": False, "message": "检测到屏幕反射/视频攻击，请使用真实人脸"})
 
     steps = session["steps"]
     current = session["current"]

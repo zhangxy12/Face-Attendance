@@ -110,7 +110,7 @@ def check_reflection(frame, threshold=30):
     total_pixels = gray.size
     bright_ratio = bright_pixels / total_pixels
     # 如果高亮区域比例过大，判定为反射
-    return bright_ratio > 0.18  # 可根据实际调整
+    return bright_ratio > 0.18  
 
 def simple_reflection_detection(frame):
     """

@@ -125,8 +125,8 @@ class ArcFaceSDK:
             sdk_key: SDK授权密钥
             lib_path: SDK库文件路径，默认自动查找
         """
-        self.app_id = app_id or b''  # 
-        self.sdk_key = sdk_key or b''  # 
+        self.app_id = app_id or b'8QDRt1hher7yzUrXPeK26gfv8zkSqnvapc25NwKk9h7c'  # 
+        self.sdk_key = sdk_key or b'6e6oU8h4Vo8uiNVqEppTY1Uxa6M3G92pZG5wDLUidj2u'  # 
         self.handle = c_void_p()
         self.mask = ASF_FACE_DETECT | ASF_FACERECOGNITION | ASF_LIVENESS
         self.lib = None
@@ -428,7 +428,7 @@ class ArcFaceSDK:
                     "status": "真人" if is_live else f"非真人/异常({status})"
                 })
             
-            # 总体结果判断：只要有一个是真人，就认为有真人
+            # 总体结果判断
             any_live = any(item["is_live"] for item in liveness_list)
             
             return {
